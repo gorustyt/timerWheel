@@ -1,4 +1,32 @@
 # timerWheel
+
+example:
+
+```go
+package main
+
+import (
+	"fmt"
+	tm "github.com/gorustyt/timerWheel"
+	"time"
+)
+
+func main() {
+	t := tm.NewAsyncTimeWheel()
+	t.Schedule(1*time.Second, 1*time.Second, func(ts time.Time) {
+		fmt.Println(time.Now())
+	})
+	time.Sleep(1000 * time.Second)
+}
+//result
+timeWheel run start
+2024-01-14 23:14:23.6401488 +0800 CST m=+1.005890901
+2024-01-14 23:14:24.6424991 +0800 CST m=+2.008241201
+2024-01-14 23:14:25.6376216 +0800 CST m=+3.003363701
+2024-01-14 23:14:26.6455683 +0800 CST m=+4.011310401
+2024-01-14 23:14:27.6367333 +0800 CST m=+5.002475401
+```
+
 go 语言实现 c++游戏框架skynet 的时间轮
 
 游戏中的定时器一般是两种
