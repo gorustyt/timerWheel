@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,12 +25,12 @@ type TimeWheelHandle func(ts time.Time)
 
 // 时间轮节点
 type TimerWheelNode struct {
-	id           int64
-	expire       int64
-	handle       TimeWheelHandle
-	duration     time.Duration
-	expireAt     time.Time
-	fireDuration time.Duration
+	Id           int64
+	Expire       int64
+	Handle       TimeWheelHandle
+	Duration     time.Duration
+	ExpireAt     time.Time
+	FireDuration time.Duration
 }
 
 type TimeWheel struct {
@@ -90,10 +91,10 @@ func (t *TimeWheel) execute(ts time.Time, process func(ts time.Time, node *Timer
 
 	for e != nil {
 		node := e.Value.(*TimerWheelNode)
-		t.remove(node.id)
-		if node.fireDuration > 0 { //循环任务
-			node.expireAt = node.expireAt.Add(node.duration)
-			node.expire = t.calTick(node.expireAt)
+		t.remove(node.Id)
+		if node.FireDuration > 0 { //循环任务
+			node.ExpireAt = node.ExpireAt.Add(node.Duration)
+			node.Expire = t.calTick(node.ExpireAt)
 			t.addNode(node)
 		}
 		t.unlock()
@@ -119,15 +120,15 @@ func (t *TimeWheel) remove(id int64) {
 
 func (t *TimeWheel) Schedule(fireDuration, duration time.Duration, handle TimeWheelHandle) int64 {
 	node := &TimerWheelNode{
-		handle:       handle,
-		duration:     duration,
-		fireDuration: fireDuration,
-		expireAt:     time.Now().Add(fireDuration)}
-	node.expire = t.calTick(node.expireAt)
+		Handle:       handle,
+		Duration:     duration,
+		FireDuration: fireDuration,
+		ExpireAt:     time.Now().Add(fireDuration)}
+	node.Expire = t.calTick(node.ExpireAt)
 	t.lock()
 	t.addNode(node)
 	t.unlock()
-	return node.id
+	return node.Id
 }
 
 func (t *TimeWheel) calTick(expireAt time.Time) int64 {
@@ -136,41 +137,40 @@ func (t *TimeWheel) calTick(expireAt time.Time) int64 {
 
 func (t *TimeWheel) Add(duration time.Duration, handle TimeWheelHandle) int64 {
 	node := &TimerWheelNode{
-		handle:   handle,
-		duration: duration,
-		expireAt: time.Now().Add(duration)}
-	node.expire = t.calTick(node.expireAt)
+		Handle:   handle,
+		Duration: duration,
+		ExpireAt: time.Now().Add(duration)}
+	node.Expire = t.calTick(node.ExpireAt)
 	t.lock()
 	t.addNode(node)
 	t.unlock()
-	return node.id
+	return node.Id
 }
 
 func (t *TimeWheel) addNode(node *TimerWheelNode) {
-	if node.id == 0 {
-		t.autoIdInc++
-		node.id = t.autoIdInc
+	if node.Id == 0 {
+		node.Id = atomic.AddInt64(&t.autoIdInc, 1)
 	}
-	if node.expire|TIME_NEAR_MASK == t.tick|TIME_NEAR_MASK {
-		l := t.near[node.expire&TIME_NEAR_MASK]
+	if node.Expire|TIME_NEAR_MASK == t.tick|TIME_NEAR_MASK {
+		l := t.near[node.Expire&TIME_NEAR_MASK]
 		e := l.PushBack(node)
-		t.cancels[node.id] = func() {
-			delete(t.cancels, node.id)
+		t.cancels[node.Id] = func() {
+			delete(t.cancels, node.Id)
 			l.Remove(e)
 		}
 	} else {
 		mask := int64(TIME_NEAR << TIME_LEVEL_SHIFT)
 		var i int
 		for i = 0; i < 3; i++ {
-			if node.expire|(mask-1) == t.tick|(mask-1) {
+			if node.Expire|(mask-1) == t.tick|(mask-1) {
 				break
 			}
 			mask <<= TIME_LEVEL_SHIFT
 		}
-		l := t.t[i][(node.expire>>(TIME_NEAR_SHIFT+i*TIME_LEVEL_SHIFT))&TIME_LEVEL_MASK]
+		l := t.t[i][(node.Expire>>(TIME_NEAR_SHIFT+i*TIME_LEVEL_SHIFT))&TIME_LEVEL_MASK]
 		e := l.PushBack(node)
-		t.cancels[node.id] = func() {
-			delete(t.cancels, node.id)
+		t.cancels[node.Id] = func() {
+			delete(t.cancels, node.Id)
 			l.Remove(e)
 		}
 	}
@@ -203,7 +203,7 @@ func (t *TimeWheel) move(level, idx int) {
 	e := l.Front()
 	for e != nil {
 		node := e.Value.(*TimerWheelNode)
-		t.remove(node.id)
+		t.remove(node.Id)
 		t.addNode(node)
 		e = e.Prev()
 	}
@@ -243,7 +243,7 @@ func (t *TimeWheel) run() {
 		select {
 		case <-ticker.C:
 			t.Update(time.Now(), func(ts time.Time, node *TimerWheelNode) {
-				go node.handle(ts)
+				go node.Handle(ts)
 			})
 		}
 		if t.quit {
