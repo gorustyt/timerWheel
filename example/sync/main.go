@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	tm "github.com/gorustyt/timerWheel"
+	"github.com/gorustyt/timerWheel"
 	"time"
 )
 
 func main() {
 	//创建一个timer,需要手动调用update 驱动
-	t := tm.NewSyncTimeWheel()
+	t := timerWheel.NewSyncTimeWheel()
 	//定时任务
 	t.Add(3*time.Second, func(ts time.Time) {
 		fmt.Println("add timer=======", ts)
@@ -18,7 +18,7 @@ func main() {
 		fmt.Println("Schedule=======", ts)
 	})
 	for { //驱动timer
-		t.Update(time.Now(), func(ts time.Time, node *tm.TimerWheelNode) {
+		t.Update(time.Now(), func(ts time.Time, node *timerWheel.TimerWheelNode) {
 			fmt.Printf("manulal exec node id :%v\n", node.Id)
 			node.Handle(ts)
 		})
