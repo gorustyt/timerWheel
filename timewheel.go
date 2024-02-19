@@ -1,4 +1,4 @@
-package apply
+package timerWheel
 
 import (
 	"container/list"
@@ -91,6 +91,7 @@ func (t *TimeWheel) execute(ts time.Time, process func(ts time.Time, node *Timer
 
 	for e != nil {
 		node := e.Value.(*TimerWheelNode)
+		e = e.Next()
 		t.remove(node.Id)
 		if node.FireDuration > 0 { //循环任务
 			node.ExpireAt = node.ExpireAt.Add(node.Duration)
@@ -102,7 +103,7 @@ func (t *TimeWheel) execute(ts time.Time, process func(ts time.Time, node *Timer
 			process(ts, node)
 		}
 		t.lock()
-		e = e.Prev()
+
 	}
 
 }
@@ -203,9 +204,10 @@ func (t *TimeWheel) move(level, idx int) {
 	e := l.Front()
 	for e != nil {
 		node := e.Value.(*TimerWheelNode)
+		e = e.Next()
 		t.remove(node.Id)
 		t.addNode(node)
-		e = e.Prev()
+
 	}
 }
 

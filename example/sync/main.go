@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	//创建一个异步timer，单独的协程驱动，调用update
+	//创建一个timer,需要手动调用update 驱动
 	t := tm.NewSyncTimeWheel()
 	//定时任务
 	t.Add(3*time.Second, func(ts time.Time) {
