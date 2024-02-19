@@ -22,6 +22,6 @@ func main() {
 			fmt.Printf("manulal exec node id :%v\n", node.Id)
 			node.Handle(ts)
 		})
-		time.Sleep(10 * time.Second)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
